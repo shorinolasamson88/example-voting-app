@@ -8,21 +8,36 @@
 # docker buildx build --platform "linux/arm64/v8" .
 
 # build compiles the program for the builder's local platform
-FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:7.0 AS build
+# Build stage
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+
 ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG BUILDPLATFORM
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
+
+RUN echo "Building on $BUILDPLATFORM for $TARGETPLATFORM"
 
 WORKDIR /source
-COPY *.csproj .
+
+# Restore dependencies first for better build-layer caching
+COPY *.csproj ./
 RUN dotnet restore -a $TARGETARCH
 
+# Compile and publish the Worker
 COPY . .
-RUN dotnet publish -c release -o /app -a $TARGETARCH --self-contained false --no-restore
+RUN dotnet publish -c Release -o /app \
+    -a $TARGETARCH \
+    --self-contained false \
+    --no-restore
 
-# app image
-FROM mcr.microsoft.com/dotnet/runtime:7.0
+# Production runtime stage
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+
 WORKDIR /app
-COPY --from=build /app .
+
+COPY --from=build /app ./
+
+# Run with the non-root user provided by the .NET image
+USER $APP_UID
+
 ENTRYPOINT ["dotnet", "Worker.dll"]

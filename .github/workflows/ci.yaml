@@ -1,0 +1,112 @@
+
+name: Application CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  vote-check:
+    name: Validate and Scan Vote
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python syntax
+        run: python -m py_compile vote/app.py
+
+      - name: Install Vote dependencies
+        run: pip install -r vote/requirements.txt
+
+      - name: Build Vote image
+        run: docker build -t voting-vote:ci ./vote
+
+      - name: Scan Vote image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: voting-vote:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+  result-check:
+    name: Validate and Scan Result
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: result/package-lock.json
+
+      - name: Install Result dependencies
+        working-directory: result
+        run: npm ci
+
+      - name: Audit Result dependencies
+        working-directory: result
+        run: npm audit --audit-level=high
+
+      - name: Validate JavaScript syntax
+        run: node --check result/server.js
+
+      - name: Build Result image
+        run: docker build --target final -t voting-result:ci ./result
+
+      - name: Scan Result image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: voting-result:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+  worker-check:
+    name: Validate and Scan Worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build Worker
+        run: dotnet build worker/Worker.csproj --configuration Release
+
+      - name: Build Worker image
+        run: docker build -t voting-worker:ci ./worker
+
+      - name: Scan Worker image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: voting-worker:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
