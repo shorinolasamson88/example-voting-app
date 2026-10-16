@@ -10,8 +10,15 @@ RUN apt-get update && \
 WORKDIR /usr/local/app
 
 # Install our requirements.txt
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt ./
+
+# Audit dependencies first
+RUN pip install -r requirements.txt
+
+# Upgrade tools that the vulnerability scanner reported as problematic
+RUN python -m pip install --no-cache-dir --upgrade \
+    "jaraco.context>=6.1.0" \
+    "wheel>=0.46.2"
 
 # dev defines a stage for development, where it'll watch for filesystem changes
 FROM base AS dev
