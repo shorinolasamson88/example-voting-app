@@ -34,7 +34,7 @@ jobs:
         run: docker build -t voting-vote:ci ./vote
 
       - name: Scan Vote image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: voting-vote:ci
           format: table
@@ -73,7 +73,7 @@ jobs:
         run: docker build --target final -t voting-result:ci ./result
 
       - name: Scan Result image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: voting-result:ci
           format: table
@@ -102,7 +102,7 @@ jobs:
         run: docker build -t voting-worker:ci ./worker
 
       - name: Scan Worker image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: voting-worker:ci
           format: table
